@@ -363,9 +363,10 @@ namespace Foreman
                 LoadLocaleFiles();
             }
 
-            progress.Report(90);
-            MarkCyclicRecipes();
             progress.Report(100);
+            //progress.Report(90);
+            //MarkCyclicRecipes();
+            //progress.Report(100);
 
             ReportErrors();
         }

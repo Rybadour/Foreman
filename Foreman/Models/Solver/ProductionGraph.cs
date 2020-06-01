@@ -149,9 +149,7 @@ namespace Foreman
                     }
                 }
 
-				//nodesToVisit.UnionWith(CreateOrLinkAllPossibleRecipeNodes(currentNode));
-				//nodesToVisit.UnionWith(CreateOrLinkAllPossibleSupplyNodes(currentNode));
-				CreateAllPossibleInputLinks();
+				//CreateAllPossibleInputLinks();
 			}
 		}
 
@@ -238,15 +236,16 @@ namespace Foreman
 		//Returns true if a new link was created
 		public void CreateAllLinksForNode(ProductionNode node)
 		{
-            var unlinkedItems = node.Inputs.Where(i => !node.InputLinks.Any(nl => nl.Item == i));
-			foreach (Item item in unlinkedItems)
+			foreach (Item item in node.Inputs)
 			{
-                var existing = Nodes.Where(n => n.Outputs.Contains(item) && n != node);
-                if (existing.Any())
+                foreach (ProductionNode existingNode in Nodes.Where(n => n.Outputs.Contains(item)))
                 {
-                    NodeLink.Create(existing.First(), node, item);
+                    if (existingNode != node)
+                    {
+                        NodeLink.Create(existingNode, node, item);
+                    }
                 }
-			}
+            }
 		}
 
 		//Returns any nodes that are created
