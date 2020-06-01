@@ -114,8 +114,8 @@ namespace Foreman
                     local oldrequire = require
 
                     function relative_require(modname)
-                      if string.match(modname, '__.+__/') then
-                        return oldrequire(string.gsub(modname, '__.+__/', ''))
+                      if string.match(modname, '__.+__[/%.]') then
+                        return oldrequire(string.gsub(modname, '__.+__[/%.]', ''))
                       end
                       local regular_loader = package.searchers[2]
                       local loader = function(inner)
@@ -1134,6 +1134,12 @@ namespace Foreman
                 Recipe newRecipe = new Recipe(name, time == 0.0f ? defaultRecipeTime : time, ingredients, results);
 
                 newRecipe.Category = ReadLuaString(values, "category", true, "crafting");
+                // Skip barreling recipes from Bobs/Angels
+                if (newRecipe.Category == "barreling-pump" || newRecipe.Category == "air-pump")
+                {
+                    if (newRecipe.Name.StartsWith("empty-") || newRecipe.Name.StartsWith("fill-"))
+                        return;
+                }
                 newRecipe.Icon = GetIcon(values);
 
                 foreach (Item result in results.Keys)
