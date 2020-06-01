@@ -313,15 +313,32 @@ namespace Foreman
                     }
                 }
 
-                LuaTable resourceTable = lua.GetTable("data.raw")["resource"] as LuaTable;
-                if (resourceTable != null)
+                // TODO: Might be a better way to define these overrides but Angels and Seablock are not setting Resources properly.
+                Resource water = new Resource("water");
+                water.result = "water";
+                if (Mods.Find(m => m.Name.Contains("SeaBlock") && m.Enabled) != null)
                 {
-                    var resourceEnumerator = resourceTable.GetEnumerator();
-                    while (resourceEnumerator.MoveNext())
+                    // Seablock only has one resource and that is water.
+                    Resources.Add("water", water);
+                }
+                else
+                {
+                    // Bobs/Angels removed water as a resource for some reason...
+                    if (Mods.Find(m => m.Name.Contains("angels") && m.Enabled) != null)
                     {
-                        InterpretResource(resourceEnumerator.Key as String, resourceEnumerator.Value as LuaTable);
+                        Resources.Add("water", water);
+                    }
+                    LuaTable resourceTable = lua.GetTable("data.raw")["resource"] as LuaTable;
+                    if (resourceTable != null)
+                    {
+                        var resourceEnumerator = resourceTable.GetEnumerator();
+                        while (resourceEnumerator.MoveNext())
+                        {
+                            InterpretResource(resourceEnumerator.Key as String, resourceEnumerator.Value as LuaTable);
+                        }
                     }
                 }
+
 
                 LuaTable moduleTable = lua.GetTable("data.raw")["module"] as LuaTable;
                 if (moduleTable != null)

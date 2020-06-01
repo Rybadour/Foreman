@@ -98,9 +98,59 @@ namespace Foreman
 			{
 				ProductionNode currentNode = nodesToVisit.First();
 				nodesToVisit.Remove(nodesToVisit.First());
-				
-				nodesToVisit.UnionWith(CreateOrLinkAllPossibleRecipeNodes(currentNode));
-				nodesToVisit.UnionWith(CreateOrLinkAllPossibleSupplyNodes(currentNode));
+
+                var unlinkedItems = currentNode.Inputs.Where(i => !currentNode.InputLinks.Any(nl => nl.Item == i));
+
+                foreach (Item item in unlinkedItems)
+                {
+                    var recipePool = item.Recipes.Where(r => !r.IsCyclic && r.Enabled);   //Ignore recipes that can ultimately supply themselves, like filling/emptying barrels or certain modded recipes
+                    bool createdLink = false;
+
+                    // Try to find a node that references a recipe that produces this item.
+                    foreach (Recipe recipe in recipePool)
+                    {
+                        var existingNodes = Nodes.OfType<RecipeNode>().Where(n => n.BaseRecipe == recipe);
+                        if (existingNodes.Any())
+                        {
+                            // TODO: Is there a better way to choose which recipe to connect to?
+                            // Maybe don't connect to recipes with existing connections.
+                            NodeLink.Create(existingNodes.First(), currentNode, item);
+                            createdLink = true;
+                            break;
+                        }
+                    }
+
+                    // Attempt to find supply node providing the item
+                    if (!createdLink)
+                    {
+                        var existingNodes = Nodes.OfType<SupplyNode>().Where(n => n.SuppliedItem == item);
+                        if (existingNodes.Any())
+                        {
+                            NodeLink.Create(existingNodes.First(), currentNode, item);
+                        }
+                    }
+
+                    // Create new node
+                    if (!createdLink)
+                    {
+                        var matching = DataCache.Resources.Where(r => r.Value.result == item.Name);
+                        if (matching.Count() == 0 && recipePool.Count() > 0)
+                        {
+                            // TODO: Find a better way to choose a recipe to create
+                            RecipeNode newNode = RecipeNode.Create(recipePool.First(), this);
+                            NodeLink.Create(newNode, currentNode, item);
+                            nodesToVisit.Add(newNode);
+                        }
+                        else
+                        {
+                            SupplyNode newNode = SupplyNode.Create(item, this);
+                            NodeLink.Create(newNode, currentNode, item);
+                        }
+                    }
+                }
+
+				//nodesToVisit.UnionWith(CreateOrLinkAllPossibleRecipeNodes(currentNode));
+				//nodesToVisit.UnionWith(CreateOrLinkAllPossibleSupplyNodes(currentNode));
 				CreateAllPossibleInputLinks();
 			}
 		}
@@ -188,15 +238,14 @@ namespace Foreman
 		//Returns true if a new link was created
 		public void CreateAllLinksForNode(ProductionNode node)
 		{
-			foreach (Item item in node.Inputs)
+            var unlinkedItems = node.Inputs.Where(i => !node.InputLinks.Any(nl => nl.Item == i));
+			foreach (Item item in unlinkedItems)
 			{
-				foreach (ProductionNode existingNode in Nodes.Where(n => n.Outputs.Contains(item)))
-				{
-					if (existingNode != node)
-					{
-						NodeLink.Create(existingNode, node, item);
-					}
-				}
+                var existing = Nodes.Where(n => n.Outputs.Contains(item) && n != node);
+                if (existing.Any())
+                {
+                    NodeLink.Create(existing.First(), node, item);
+                }
 			}
 		}
 
