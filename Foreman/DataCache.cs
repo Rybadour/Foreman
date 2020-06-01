@@ -799,7 +799,9 @@ namespace Foreman
             {
                 String outputDir = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(modZipFile));
                 if (!Directory.Exists(outputDir))
+                {
                     ZipFile.ExtractToDirectory(modZipFile, outputDir);
+                }
 
                 if (zipHashes.ContainsKey(fullPath))
                     zipHashes[fullPath] = hash;
@@ -867,13 +869,19 @@ namespace Foreman
 
                 string[] split = depString.Split(' ');
 
-                if (split[token] == "?")
+                if (split[token] == "?" || split[token] == "(?)")
                 {
                     newDependency.Optional = true;
                     token++;
                 }
 
-                newDependency.ModName = split[token];
+                string modName = split[token];
+                if (modName.StartsWith("(?)"))
+                {
+                    newDependency.Optional = true;
+                    modName = modName.Replace("(?)", "");
+                }
+                newDependency.ModName = modName;
                 token++;
 
                 if (split.Count() == token + 2)
@@ -901,11 +909,6 @@ namespace Foreman
                         return;
                     }
                     token++;
-                }
-                else
-                {
-                    ErrorLogging.LogLine(String.Format("Mod '{0}' has malformed dependency '{1}'", mod.Name, depString));
-                    return;
                 }
 
                 mod.parsedDependencies.Add(newDependency);
@@ -1105,6 +1108,12 @@ namespace Foreman
         {
             try
             {
+                String subgroup = ReadLuaString(values, "subgroup", true, "");
+                if (subgroup == "fill-barrel" || subgroup == "empty-barrel")
+                {
+                    return;
+                }
+
                 var timeSource = values[Difficulty] == null ? values : ReadLuaLuaTable(values, Difficulty, true);
                 if (timeSource == null)
                 {
