@@ -58,6 +58,7 @@ namespace Foreman
 
         private static String DataPath { get { return Path.Combine(Settings.Default.FactorioPath, "data"); } }
         private static String ModPath { get { return Settings.Default.FactorioModPath; } }
+        private static String ExtractionPath { get { return ModPath; } }
 
         public static List<Mod> Mods = new List<Mod>();
         public static List<Language> Languages = new List<Language>();
@@ -815,7 +816,7 @@ namespace Foreman
 
             if (!zipHashes.ContainsKey(fullPath) || !zipHashes[fullPath].SequenceEqual(hash))
             {
-                String outputDir = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(modZipFile));
+                String outputDir = Path.Combine(ExtractionPath, Path.GetFileNameWithoutExtension(modZipFile));
                 if (!Directory.Exists(outputDir))
                 {
                     ZipFile.ExtractToDirectory(modZipFile, outputDir);
@@ -841,7 +842,7 @@ namespace Foreman
                 return;
             }
 
-            String modUnzippedFolder = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(zipFile));
+            String modUnzippedFolder = Path.Combine(ExtractionPath, Path.GetFileNameWithoutExtension(zipFile));
             String file = Directory.EnumerateFiles(modUnzippedFolder, "info.json", SearchOption.AllDirectories).FirstOrDefault();
             if (String.IsNullOrWhiteSpace(file))
             {
