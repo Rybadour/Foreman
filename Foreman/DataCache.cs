@@ -1086,9 +1086,40 @@ namespace Foreman
             string fileName = ReadLuaString(values, "icon", true);
             if (fileName == null)
             {
-                var icons = ReadLuaLuaTable(values, "icons", true);
+                LuaTable icons = ReadLuaLuaTable(values, "icons", true);
+
+                try
+                {
+                    if (!Convert.ToString(values["name"]).Contains("barrel"))
+                    {
+                        //ErrorLogging.LogLine("recipe name: " + values["name"]);
+                        foreach (var s in icons.Values)
+                        {
+                            if (s is LuaTable)
+                            {
+                                //LuaTable tints = (LuaTable)((LuaTable)s)["tint"];
+                                //foreach (var k in tints.Keys)
+                                //{
+                                //    ErrorLogging.LogLine(Convert.ToString(k) + ": " + Convert.ToString(tints[k]));
+                                //}
+                                //ErrorLogging.LogLine(Convert.ToString(((LuaTable)s)["icon"]));
+                                fileName = Convert.ToString(((LuaTable)s)["icon"]);
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    //ErrorLogging.LogLine(e.Message);
+                }
+
+
+                /*
                 if (icons != null)
                 {
+                    ErrorLogging.LogLine("Icons: " + icons[1]);
+                    LuaTable huh = (LuaTable)icons[1];
+                    ErrorLogging.LogLine("huh: " + huh[0]);
                     // TODO: Figure out how to composite multiple icons
                     LuaTable first = (LuaTable)icons?[1];
                     if (first != null)
@@ -1096,6 +1127,7 @@ namespace Foreman
                         fileName = ReadLuaString(first, "icon", true);
                     }
                 }
+                */
             }
 
 
