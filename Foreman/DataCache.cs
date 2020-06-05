@@ -976,7 +976,7 @@ namespace Foreman
             }
         }
 
-        private static Bitmap LoadImage(String fileName)
+        private static Bitmap LoadImage(String fileName, int iconSize = 0)
         {
             if (String.IsNullOrEmpty(fileName))
             { return null; }
@@ -1013,7 +1013,16 @@ namespace Foreman
             {
                 using (Bitmap image = new Bitmap(fullPath)) //If you don't do this, the file is locked for the lifetime of the bitmap
                 {
-                    return new Bitmap(image);
+                    if (iconSize != 0)
+                    {
+                        Rectangle crop = new Rectangle(0, 0, iconSize, iconSize);
+                        Bitmap bmp = new Bitmap(image);
+                        return bmp.Clone(crop, bmp.PixelFormat);
+                    }
+                    else
+                    {
+                        return new Bitmap(image);
+                    }
                 }
             }
             catch (Exception)
@@ -1084,58 +1093,108 @@ namespace Foreman
         private static Bitmap GetIcon(LuaTable values, bool fallbackToUnknown = false)
         {
             string fileName = ReadLuaString(values, "icon", true);
-            if (fileName == null)
+            string mipmaps = ReadLuaString(values, "icon_mipmaps", true);
+            int iconsize = 0;
+            if (mipmaps != null)
             {
-                LuaTable icons = ReadLuaLuaTable(values, "icons", true);
+                iconsize = 4 * Convert.ToInt32(Math.Pow(2, Convert.ToDouble(mipmaps)));
+            }
 
-                try
+
+
+            return (fileName == null ? GetIcons(values) : LoadImage(fileName, iconsize));
+        }
+        private static Bitmap GetIcons(LuaTable values)
+        {
+            Bitmap fullImage = new Bitmap(32,32);
+            for (int i = 0; i < 32; i++)
+            {
+                for (int j = 0; j < 32; j++)
                 {
-                    if (!Convert.ToString(values["name"]).Contains("barrel"))
+                    fullImage.SetPixel(i, j, Color.FromArgb(0, 255, 255, 255));
+                }
+            }
+            LuaTable icons = ReadLuaLuaTable(values, "icons", true);
+            try
+            {
+                if (!Convert.ToString(values["name"]).Contains("barrel"))
+                {
+                    foreach (var iconKey in icons.Keys)
                     {
-                        //ErrorLogging.LogLine("recipe name: " + values["name"]);
-                        foreach (var s in icons.Values)
+                        if (iconKey != null)
                         {
-                            if (s is LuaTable)
+                            if (icons[iconKey] is LuaTable)
                             {
-                                //LuaTable tints = (LuaTable)((LuaTable)s)["tint"];
-                                //foreach (var k in tints.Keys)
-                                //{
-                                //    ErrorLogging.LogLine(Convert.ToString(k) + ": " + Convert.ToString(tints[k]));
-                                //}
-                                //ErrorLogging.LogLine(Convert.ToString(((LuaTable)s)["icon"]));
-                                fileName = Convert.ToString(((LuaTable)s)["icon"]);
+                                LuaTable iconTable = (LuaTable)icons[iconKey];
+                                int actualIconSize = Convert.ToInt32(Convert.ToDouble(iconTable["icon_size"]) * Convert.ToDouble(iconTable["scale"]));
+                                // create and scale image
+                                Bitmap iconImage = new Bitmap
+                                (
+                                    LoadImage(Convert.ToString(iconTable["icon"])),
+                                    actualIconSize,
+                                    actualIconSize
+                                );
+                                // tint image
+                                LuaTable tintTable = (LuaTable)iconTable["tint"];
+                                if (tintTable != null)
+                                {
+                                    Color tintColor = Color.FromArgb
+                                    (
+                                        Convert.ToInt32(Convert.ToDouble(tintTable["a"]) * 255),
+                                        Convert.ToInt32(Convert.ToDouble(tintTable["r"]) * 255),
+                                        Convert.ToInt32(Convert.ToDouble(tintTable["g"]) * 255),
+                                        Convert.ToInt32(Convert.ToDouble(tintTable["b"]) * 255)
+
+                                    );
+                                    for (int i = 0; i < actualIconSize; i++)
+                                    {
+                                        for (int j = 0; j < actualIconSize; j++)
+                                        {
+                                            if (iconImage.GetPixel(i, j).A != 0)
+                                            {
+                                                iconImage.SetPixel(i, j, tintColor);
+                                            }
+                                        }
+                                    }
+                                }
+                                // offset image
+                                int offsetX = 0;
+                                int offsetY = 0;
+                                try
+                                {
+                                    LuaTable offsetTable = (LuaTable)iconTable["shift"];
+                                    offsetX = Convert.ToInt32(offsetTable["1"]);
+                                    offsetY = Convert.ToInt32(offsetTable["2"]);
+                                }
+                                catch (Exception e)
+                                {
+                                    // whatever
+                                }
+                                using (Graphics g = Graphics.FromImage(fullImage))
+                                {
+                                    g.DrawImage(iconImage, new Rectangle(offsetX, offsetY, iconImage.Width, iconImage.Height));
+                                }
                             }
                         }
                     }
                 }
-                catch (Exception e)
-                {
-                    //ErrorLogging.LogLine(e.Message);
-                }
-
-
-                /*
-                if (icons != null)
-                {
-                    ErrorLogging.LogLine("Icons: " + icons[1]);
-                    LuaTable huh = (LuaTable)icons[1];
-                    ErrorLogging.LogLine("huh: " + huh[0]);
-                    // TODO: Figure out how to composite multiple icons
-                    LuaTable first = (LuaTable)icons?[1];
-                    if (first != null)
-                    {
-                        fileName = ReadLuaString(first, "icon", true);
-                    }
-                }
-                */
             }
-
-
-            if (fileName == null)
-                return (fallbackToUnknown ? UnknownIcon : null);
-            else
-                return LoadImage(fileName);
+            catch (Exception e)
+            {
+                // whatever
+            }
+            return fullImage;
         }
+
+
+
+
+
+
+
+
+
+
 
         private static void InterpretLuaRecipe(String name, LuaTable values)
         {
