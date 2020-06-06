@@ -29,12 +29,17 @@ namespace Foreman
 
         private async void ProgressForm_Load(object sender, EventArgs e)
         {
+            #if DEBUG
+            DateTime startTime = DateTime.Now;
+            //ErrorLogging.LogLine("Init program.");
+            #endif
             var progressHandler = new Progress<int>(value =>
             {
                 progressBar.Value = value;
             });
             var progress = progressHandler as IProgress<int>;
             var token = cts.Token;
+
 
             await Task.Run(() =>
             {
@@ -51,6 +56,11 @@ namespace Foreman
                 DialogResult = DialogResult.OK;
             }
 			Close();
+
+            #if DEBUG
+            TimeSpan diff = DateTime.Now.Subtract(startTime);
+            ErrorLogging.LogLine("Load time: " + Math.Round(diff.TotalSeconds, 2) + " seconds.");
+            #endif
         }
 
         // This event currently won't occur, since we hid the window controls for the dialog.
