@@ -89,7 +89,7 @@ namespace Foreman
         {
             Clear();
 
-	        progress.Report(0);
+            progress.Report(0);
             using (Lua lua = new Lua())
             {
                 FindAllMods(enabledMods, progress);
@@ -137,7 +137,7 @@ namespace Foreman
 
                     function module(modname,...)
                     end
-	
+    
                     require ""util""
                     util = {}
                     util.table = {}
@@ -246,9 +246,9 @@ namespace Foreman
 
                         //Because many mods use the same path to refer to different files, we need to clear the 'loaded' table so Lua doesn't think they're already loaded
                         lua.DoString(@"
-							for k, v in pairs(package.loaded) do
+                            for k, v in pairs(package.loaded) do
                                package.loaded[k] = false
-							end");
+                            end");
 
                         String dataFile = Path.Combine(mod.dir, filename);
                         if (File.Exists(dataFile))
@@ -1469,11 +1469,6 @@ namespace Foreman
                 if (speed != null)
                 {
                     speedBonus = GetLuaValueOrDefault<float>(speed, "bonus", true, -1f);
-                }
-
-                if (speed == null || speedBonus <= 0)
-                {
-                    return;
                 }
 
                 LuaTable productivity = GetLuaValueOrDefault<LuaTable>(effectTable, "productivity", true);
