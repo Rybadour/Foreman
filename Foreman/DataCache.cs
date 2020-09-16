@@ -384,7 +384,7 @@ namespace Foreman
                 patch = reader.ReadUInt16();
                 dev = reader.ReadUInt16();
 
-                if (minor >= 17 )
+                if (major >= 1 || (major <= 0 && minor >= 17))
                 {
                     var noop = reader.ReadByte();
                 }
