@@ -1,7 +1,5 @@
 /.vs/
 /Foreman/Foreman.csproj.user
-/Foreman/bin/
-/Foreman/obj/
-/ForemanTest/obj/
 /packages/
-/ForemanTest/bin/Release/
+[Bb]in/
+[Oo]bj/

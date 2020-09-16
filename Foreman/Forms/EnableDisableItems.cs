@@ -74,20 +74,7 @@ namespace Foreman
                     }
                     else if (!mod.DependsOn(otherMod, false))
                     {
-                        string versionCompStr = "";
-                        switch (dep.VersionType)
-                        {
-                            case DependencyType.EqualTo:
-                                versionCompStr = "=";
-                                break;
-                            case DependencyType.GreaterThan:
-                                versionCompStr = ">";
-                                break;
-                            case DependencyType.GreaterThanOrEqual:
-                                versionCompStr = ">=";
-                                break;
-                        }
-                        ModSelectionBox.errors[i] = $"{mod.Name} requires {dep.ModName} {versionCompStr} {dep.Version} but is {otherMod.version}";
+                        ModSelectionBox.errors[i] = $"{mod.Name} requires {dep.ModName} {dep.VersionOperator.Token()} {dep.Version} but is {otherMod.version}";
                         break;
                     }
                 }
