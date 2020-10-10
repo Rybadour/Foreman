@@ -315,20 +315,13 @@ namespace Foreman
                 }
 
                 // TODO: Might be a better way to define these overrides but Angels and Seablock are not setting Resources properly.
-                Resource water = new Resource("water");
-                water.result = "water";
                 if (Mods.Find(m => m.Name.Contains("SeaBlock") && m.Enabled) != null)
                 {
                     // Seablock only has one resource and that is water.
-                    Resources.Add("water", water);
+                    Resources = new Dictionary<string, Resource>();
                 }
                 else
                 {
-                    // Bobs/Angels removed water as a resource for some reason...
-                    if (Mods.Find(m => m.Name.Contains("angels") && m.Enabled) != null)
-                    {
-                        Resources.Add("water", water);
-                    }
                     LuaTable resourceTable = lua.GetTable("data.raw")["resource"] as LuaTable;
                     if (resourceTable != null)
                     {
@@ -339,6 +332,11 @@ namespace Foreman
                         }
                     }
                 }
+
+                // Water doesn't appear as a resource even in the base mod!?
+                Resource water = new Resource("water");
+                water.result = "water";
+                Resources.Add("water", water);
 
 
                 LuaTable moduleTable = lua.GetTable("data.raw")["module"] as LuaTable;
@@ -364,6 +362,8 @@ namespace Foreman
                 LoadLocaleFiles();
             }
 
+            progress.Report(90);
+            ComputeRecipesSmallestSubgraphs();
             progress.Report(100);
             //progress.Report(90);
             //MarkCyclicRecipes();
@@ -1578,6 +1578,85 @@ namespace Foreman
                 foreach (var node in scc)
                 {
                     ((RecipeNode)node).BaseRecipe.IsCyclic = true;
+                }
+            }
+        }
+
+        private static void ComputeRecipesSmallestSubgraphs()
+        {
+            var lastCount = -1;
+            var unprocessedRecipes = new List<Recipe>(Recipes.Values.Where(r => r.Enabled));
+            int i = 0;
+            while (unprocessedRecipes.Any())
+            {
+                int count = unprocessedRecipes.Count();
+                if (i == count)
+                {
+                    // If the count of unprocessedRecipes is unchanged then that means we only have
+                    // recipes left that don't have ingredients or form a loop we couldn't deal with.
+                    if (count == lastCount)
+                        break;
+                    else
+                    {
+                        lastCount = unprocessedRecipes.Count();
+                        i = 0;
+                    }
+                }
+                ++i;
+
+                Recipe recipe = unprocessedRecipes.First();
+                unprocessedRecipes.Remove(recipe);
+
+                if (recipe.SmallestSubgroup != -1)
+                    continue;
+
+                bool missingData = false;
+                int totalForRecipe = 0;
+                foreach (Item item in recipe.Ingredients.Keys)
+                {
+                    // Early continue if item was already computed
+                    if (item.SmallestSubGraph != -1)
+                    {
+                        totalForRecipe += item.SmallestSubGraph;
+                        continue;
+                    }
+
+                    // Early continue for resources
+                    if (Resources.Where(r => r.Value.result == item.Name).Any())
+                    {
+                        item.SmallestSubGraph = 1;
+                        totalForRecipe += item.SmallestSubGraph;
+                        continue;
+                    }
+
+                    var recipes = item.Recipes.Where(r => r.Enabled);
+                    if (recipes.Count() == 0)
+                    {
+                        missingData = true;
+                        break;
+                    }
+
+                    // Sort all recipes by SmallestSubGroup
+                    var ready = recipes.All(r => r.SmallestSubgroup != -1);
+                    if (ready)
+                    {
+                        var sorted = recipes.OrderBy(r => r.SmallestSubgroup);
+                        totalForRecipe += sorted.First().SmallestSubgroup;
+                    }
+                    else
+                    {
+                        missingData = true;
+                        break;
+                    }
+                }
+
+                if (missingData)
+                {
+                    unprocessedRecipes.Add(recipe);
+                }
+                else
+                {
+                    recipe.SmallestSubgroup = totalForRecipe;
                 }
             }
         }

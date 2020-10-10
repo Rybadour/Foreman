@@ -13,6 +13,8 @@ namespace Foreman
 		public String Name { get; private set; }
 		public HashSet<Recipe> Recipes { get; private set; }
 		public Bitmap Icon { get; set; }
+        public int SmallestSubGraph { get; set; }
+        public Recipe SmallestSubGraphRecipe { get; set; }
 		public String FriendlyName
 		{
 			get
@@ -39,6 +41,8 @@ namespace Foreman
 		{
 			Name = name;
 			Recipes = new HashSet<Recipe>();
+            SmallestSubGraph = -1;
+            SmallestSubGraphRecipe = null;
 		}
 
 		public override int GetHashCode()

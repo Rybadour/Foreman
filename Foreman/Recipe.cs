@@ -15,6 +15,7 @@ namespace Foreman
 		public Dictionary<Item, float> Ingredients { get; private set; }
 		public Boolean IsMissingRecipe = false;
 		public Boolean IsCyclic { get; set; }
+        public int SmallestSubgroup { get; set; }
 		private Bitmap uniqueIcon = null;
 		public Bitmap Icon
 		{
@@ -65,6 +66,7 @@ namespace Foreman
 			this.Ingredients = ingredients;
 			this.Results = results;
             this.Enabled = true; //Nothing will have been loaded yet to disable recipes.
+            this.SmallestSubgroup = -1;
 		}
 
 		public override int GetHashCode()
