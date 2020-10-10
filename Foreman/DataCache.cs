@@ -385,7 +385,7 @@ namespace Foreman
                 patch = reader.ReadUInt16();
                 dev = reader.ReadUInt16();
 
-                if (minor >= 17 )
+                if (major >= 1 || (major <= 0 && minor >= 17))
                 {
                     var noop = reader.ReadByte();
                 }
@@ -828,6 +828,22 @@ namespace Foreman
             Mods.Add(newMod);
         }
 
+        private static readonly List<Tuple<string, DependencyType>> DependencyTypeTokens = new List<Tuple<string, DependencyType>>
+        {
+            Tuple.Create("(?)", DependencyType.OptionalHidden),
+            Tuple.Create("?", DependencyType.Optional),
+            Tuple.Create("!", DependencyType.Incompatible)
+        };
+        private static readonly List<Tuple<string, VersionOperator>> VersionOperatorTokens = new List<Tuple<string, VersionOperator>>
+        {
+            // Order is important to match the 'largest' token first
+            Tuple.Create(VersionOperator.GreaterThanOrEqual.Token(), VersionOperator.GreaterThanOrEqual),
+            Tuple.Create(VersionOperator.LessThanOrEqual.Token(), VersionOperator.LessThanOrEqual),
+            Tuple.Create(VersionOperator.GreaterThan.Token(), VersionOperator.GreaterThan),
+            Tuple.Create(VersionOperator.LessThan.Token(), VersionOperator.LessThan),
+            Tuple.Create(VersionOperator.EqualTo.Token(), VersionOperator.EqualTo)
+        };
+
         private static void ParseModDependencies(Mod mod)
         {
             if (mod.Name == "base")
@@ -835,54 +851,39 @@ namespace Foreman
                 mod.dependencies.Add("core >= 0.0.0.0");
             }
 
-            foreach (String depString in mod.dependencies)
+            foreach (string depString in mod.dependencies)
             {
-                int token = 0;
-
                 ModDependency newDependency = new ModDependency();
 
-                string[] split = depString.Split(' ');
+                string trimmedDepString = depString.Trim();
+                var dependencyTypeToken = DependencyTypeTokens.FirstOrDefault(t => trimmedDepString.StartsWith(t.Item1));
+                newDependency.Type = dependencyTypeToken?.Item2 ?? DependencyType.Required;
 
-                if (split[token] == "?" || split[token] == "(?)")
+                string modNameWithVersion = dependencyTypeToken != null ?
+                    trimmedDepString.Substring(dependencyTypeToken.Item1.Length).TrimStart() : trimmedDepString;
+                var indexOfVersionOperatorToken = VersionOperatorTokens
+                    .Select(t => new { Token = t.Item1, Index = modNameWithVersion.IndexOf(t.Item1), Operator = t.Item2 })
+                    .FirstOrDefault(v => v.Index > 0);
+
+                if (indexOfVersionOperatorToken != null)
                 {
-                    newDependency.Optional = true;
-                    token++;
-                }
+                    newDependency.ModName = modNameWithVersion
+                        .Substring(0, indexOfVersionOperatorToken.Index)
+                        .TrimEnd();
+                    newDependency.VersionOperator = indexOfVersionOperatorToken.Operator;
 
-                string modName = split[token];
-                if (modName.StartsWith("(?)"))
-                {
-                    newDependency.Optional = true;
-                    modName = modName.Replace("(?)", "");
-                }
-                newDependency.ModName = modName;
-                token++;
-
-                if (split.Count() == token + 2)
-                {
-                    switch (split[token])
-                    {
-                        case "=":
-                            newDependency.VersionType = DependencyType.EqualTo;
-                            break;
-                        case ">":
-                            newDependency.VersionType = DependencyType.GreaterThan;
-                            break;
-                        case ">=":
-                            newDependency.VersionType = DependencyType.GreaterThanOrEqual;
-                            break;
-                        default:
-                            ErrorLogging.LogLine(String.Format("Mod '{0}' has malformed dependency '{1}'", mod.Name, depString));
-                            return;
-                    }
-                    token++;
-
-                    if (!Version.TryParse(split[token], out newDependency.Version))
+                    string versionString = modNameWithVersion
+                        .Substring(indexOfVersionOperatorToken.Index + indexOfVersionOperatorToken.Token.Length)
+                        .TrimStart();
+                    if (!Version.TryParse(versionString, out newDependency.Version))
                     {
                         ErrorLogging.LogLine(String.Format("Mod '{0}' has malformed dependency '{1}'", mod.Name, depString));
                         return;
                     }
-                    token++;
+                }
+                else
+                {
+                    newDependency.ModName = modNameWithVersion;
                 }
 
                 mod.parsedDependencies.Add(newDependency);

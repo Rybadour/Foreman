@@ -142,6 +142,7 @@
     </Compile>
     <Compile Include="DataCache.cs" />
     <Compile Include="DependencyGraph.cs" />
+    <Compile Include="Extensions\VersionOperatorExtensions.cs" />
     <Compile Include="Forms\InstallationChooserForm.cs">
       <SubType>Form</SubType>
     </Compile>
