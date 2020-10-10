@@ -89,7 +89,7 @@ namespace Foreman
         {
             Clear();
 
-	        progress.Report(0);
+            progress.Report(0);
             using (Lua lua = new Lua())
             {
                 FindAllMods(enabledMods, progress);
@@ -137,7 +137,7 @@ namespace Foreman
 
                     function module(modname,...)
                     end
-	
+    
                     require ""util""
                     util = {}
                     util.table = {}
@@ -246,9 +246,9 @@ namespace Foreman
 
                         //Because many mods use the same path to refer to different files, we need to clear the 'loaded' table so Lua doesn't think they're already loaded
                         lua.DoString(@"
-							for k, v in pairs(package.loaded) do
+                            for k, v in pairs(package.loaded) do
                                package.loaded[k] = false
-							end");
+                            end");
 
                         String dataFile = Path.Combine(mod.dir, filename);
                         if (File.Exists(dataFile))
@@ -276,13 +276,14 @@ namespace Foreman
                     InterpretItems(lua, type);
                 }
 
+                LuaTable technologyTable = lua.GetTable("data.raw")["technology"] as LuaTable;
                 LuaTable recipeTable = lua.GetTable("data.raw")["recipe"] as LuaTable;
                 if (recipeTable != null)
                 {
                     var recipeEnumerator = recipeTable.GetEnumerator();
                     while (recipeEnumerator.MoveNext())
                     {
-                        InterpretLuaRecipe(recipeEnumerator.Key as String, recipeEnumerator.Value as LuaTable);
+                        InterpretLuaRecipe(recipeEnumerator.Key as String, recipeEnumerator.Value as LuaTable, technologyTable);
                     }
                 }
 
@@ -458,9 +459,11 @@ namespace Foreman
             Languages.Clear();
         }
 
-        private static float ReadLuaFloat(LuaTable table, String key, Boolean canBeMissing = false, float defaultValue = 0f)
+        private static T GetLuaValueOrDefault<T>(LuaTable table, String key, Boolean canBeMissing = false, T defaultValue = default(T))
         {
-            if (table[key] == null)
+            object value = table[key];
+            Type actualType = typeof(T);
+            if (value == null) 
             {
                 if (canBeMissing)
                 {
@@ -471,61 +474,25 @@ namespace Foreman
                     throw new MissingPrototypeValueException(table, key, "Key is missing");
                 }
             }
-
+            if (actualType.IsGenericType && actualType.GetGenericTypeDefinition().Equals(typeof(Nullable<>))) 
+            {
+                actualType = Nullable.GetUnderlyingType(actualType);
+            }
             try
             {
-                return Convert.ToSingle(table[key]);
+                return (T)Convert.ChangeType(value, actualType);
             }
             catch (FormatException)
             {
-                throw new MissingPrototypeValueException(table, key, string.Format("Expected a float, but the value ('{0}') isn't one", table[key]));
+                throw new MissingPrototypeValueException(table, key, String.Format("Generics cast failed for ('{0}')", value));
             }
         }
 
-        private static int ReadLuaInt(LuaTable table, String key, Boolean canBeMissing = false, int defaultValue = 0)
+        private static T GetLuaValue<T>(LuaTable table, double key, Boolean canBeMissing = false, T defaultValue = default(T))
         {
-            if (table[key] == null)
-            {
-                if (canBeMissing)
-                {
-                    return defaultValue;
-                }
-                else
-                {
-                    throw new MissingPrototypeValueException(table, key, "Key is missing");
-                }
-            }
-
-            try
-            {
-                return Convert.ToInt32(table[key]);
-            }
-            catch (FormatException)
-            {
-                throw new MissingPrototypeValueException(table, key, String.Format("Expected an Int32, but the value ('{0}') isn't one", table[key]));
-            }
-        }
-
-        private static string ReadLuaString(LuaTable table, String key, Boolean canBeMissing = false, String defaultValue = null)
-        {
-            if (table[key] == null)
-            {
-                if (canBeMissing)
-                {
-                    return defaultValue;
-                }
-                else
-                {
-                    throw new MissingPrototypeValueException(table, key, "Key is missing");
-                }
-            }
-
-            return Convert.ToString(table[key]);
-        }
-
-        private static string ReadLuaString(LuaTable table, double key, Boolean canBeMissing = false, String defaultValue = null)
-        {
-            if (table[key] == null)
+            object value = table[key];
+            Type actualType = typeof(T);
+            if (value == null) 
             {
                 if (canBeMissing)
                 {
@@ -536,55 +503,17 @@ namespace Foreman
                     throw new MissingPrototypeValueException(table, key.ToString(), "Key is missing");
                 }
             }
-
-            return Convert.ToString(table[key]);
-        }
-
-        private static LuaTable ReadLuaLuaTable(LuaTable table, String key, Boolean canBeMissing = false)
-        {
-            if (table[key] == null)
+            if (actualType.IsGenericType && actualType.GetGenericTypeDefinition().Equals(typeof(Nullable<>))) 
             {
-                if (canBeMissing)
-                {
-                    return null;
-                }
-                else
-                {
-                    throw new MissingPrototypeValueException(table, key, "Key is missing");
-                }
+                actualType = Nullable.GetUnderlyingType(actualType);
             }
-
             try
             {
-                return table[key] as LuaTable;
+                return (T)Convert.ChangeType(value, actualType);
             }
-            catch (Exception)
+            catch (FormatException)
             {
-                throw new MissingPrototypeValueException(table, key, "Could not convert key to LuaTable");
-            }
-        }
-
-        private static LuaTable ReadLuaLuaTable(LuaTable table, double key, Boolean canBeMissing = false)
-        {
-            if (table[key] == null)
-            {
-                if (canBeMissing)
-                {
-                    return null;
-                }
-                else
-                {
-                    throw new MissingPrototypeValueException(table, key.ToString(), "Key is missing");
-                }
-            }
-
-            try
-            {
-                return table[key] as LuaTable;
-            }
-            catch (Exception)
-            {
-                throw new MissingPrototypeValueException(table, key.ToString(), "Could not convert key to LuaTable");
+                throw new MissingPrototypeValueException(table, key.ToString(), String.Format("Generics cast failed for ('{0}')", value));
             }
         }
 
@@ -1136,8 +1065,8 @@ namespace Foreman
 
         private static Bitmap GetIcon(LuaTable values, bool fallbackToUnknown = false)
         {
-            string fileName = ReadLuaString(values, "icon", true);
-            string mipmaps = ReadLuaString(values, "icon_mipmaps", true);
+            string fileName = GetLuaValueOrDefault<string>(values, "icon", true);
+            string mipmaps = GetLuaValueOrDefault<string>(values, "icon_mipmaps", true);
             int iconsize = 0;
             if (mipmaps != null)
             {
@@ -1149,7 +1078,7 @@ namespace Foreman
         private static Bitmap GetIcons(LuaTable values)
         {
             Bitmap fullImage = new Bitmap(32,32);
-            LuaTable icons = ReadLuaLuaTable(values, "icons", true);
+            LuaTable icons = GetLuaValueOrDefault<LuaTable>(values, "icons", true);
             if (icons != null && !Convert.ToString(values["name"]).Contains("barrel"))
             {
                 List<double> iconKeys = new List<double>();
@@ -1159,7 +1088,7 @@ namespace Foreman
                 }
                 foreach (double iconKey in iconKeys)
                 {
-                    LuaTable iconTable = ReadLuaLuaTable(icons, iconKey, true);
+                    LuaTable iconTable = GetLuaValue<LuaTable>(icons, iconKey, true);
                     if (iconTable != null)
                     {
                         List<string> iconTableKeys = new List<string>();
@@ -1233,8 +1162,8 @@ namespace Foreman
                             LuaTable offsetTable = (LuaTable)iconTable["shift"];
                             if (offsetTable != null)
                             {
-                                offsetX = Convert.ToDouble(ReadLuaString(offsetTable, 1, true));
-                                offsetY = Convert.ToDouble(ReadLuaString(offsetTable, 2, true));
+                                offsetX = Convert.ToDouble(GetLuaValue<string>(offsetTable, 1, true));
+                                offsetY = Convert.ToDouble(GetLuaValue<string>(offsetTable, 2, true));
                             }
                         }
                         using (Graphics g = Graphics.FromImage(fullImage))
@@ -1254,24 +1183,24 @@ namespace Foreman
             return fullImage;
         }
 
-        private static void InterpretLuaRecipe(String name, LuaTable values)
+        private static void InterpretLuaRecipe(String name, LuaTable values, LuaTable techTable)
         {
             try
             {
-                String subgroup = ReadLuaString(values, "subgroup", true, "");
+                String subgroup = GetLuaValueOrDefault<string>(values, "subgroup", true, "");
                 if (subgroup == "fill-barrel" || subgroup == "empty-barrel")
                 {
                     return;
                 }
 
-                var timeSource = values[Difficulty] == null ? values : ReadLuaLuaTable(values, Difficulty, true);
-                if (timeSource == null)
+                var recipeData = values[Difficulty] == null ? values : GetLuaValueOrDefault<LuaTable>(values, Difficulty, true);
+                if (recipeData == null)
                 {
                     ErrorLogging.LogLine($"Error reading recipe '{name}', unable to locate data table.");
                     return;
                 }
 
-                float time = ReadLuaFloat(timeSource, "energy_required", true, 0.5f);
+                float time = GetLuaValueOrDefault<float>(recipeData, "energy_required", true, 0.5f);
 
                 Dictionary<Item, float> ingredients = extractIngredientsFromLuaRecipe(values);
                 Dictionary<Item, float> results = extractResultsFromLuaRecipe(values);
@@ -1281,9 +1210,16 @@ namespace Foreman
 
                 if (name == null)
                     name = results.ElementAt(0).Key.Name;
+
+                // check if recipe even appears ingame (e.g. gets researched)
+                if (!IsRecipeAvailable(name, recipeData, techTable))
+                {
+                    return;
+                }
+                
                 Recipe newRecipe = new Recipe(name, time == 0.0f ? defaultRecipeTime : time, ingredients, results);
 
-                newRecipe.Category = ReadLuaString(values, "category", true, "crafting");
+                newRecipe.Category = GetLuaValueOrDefault<string>(values, "category", true, "crafting");
                 // Skip barreling recipes from Bobs/Angels
                 if (newRecipe.Category == "barreling-pump" || newRecipe.Category == "air-pump")
                 {
@@ -1305,6 +1241,40 @@ namespace Foreman
             }
         }
 
+        private static bool IsRecipeAvailable(String name, LuaTable recipeData, LuaTable techTable)
+        {
+            bool? recipeEnabled = GetLuaValueOrDefault<bool?>(recipeData, "enabled", true);
+            if (recipeEnabled.GetValueOrDefault(true)) // recipe is already available at gamestart - if there is no value, factorio defaults to true
+            {
+                return true;
+            }
+            System.Collections.IDictionaryEnumerator techTableEnum = techTable.GetEnumerator();
+            while (techTableEnum.MoveNext())
+            {
+                bool? techEnabled = GetLuaValueOrDefault<bool?>(techTableEnum.Value as LuaTable, "enabled", true);
+                if (!techEnabled.GetValueOrDefault(true)) // technology is disabled - if there is no value, factorio defaults to true
+                {
+                    continue; // next tech
+                }
+                LuaTable effects = GetLuaValueOrDefault<LuaTable>(techTableEnum.Value as LuaTable, "effects", true);
+                if (effects == null) // technology doesn't unlock anything O_o
+                {
+                    continue; // next tech
+                }
+                System.Collections.IDictionaryEnumerator effectsEnum = effects.GetEnumerator();
+                while (effectsEnum.MoveNext())
+                {
+                    LuaTable effect = effectsEnum.Value as LuaTable;
+                    if (effect != null && GetLuaValueOrDefault<string>(effect, "recipe", true) == name)
+                    {
+                        
+                        return true; // recipe is unlocked via technology
+                    }
+                }
+            }
+            return false; // recipe is useless garbage!
+        }
+
         private static void InterpretAssemblingMachine(String name, LuaTable values)
         {
             try
@@ -1313,19 +1283,19 @@ namespace Foreman
                 newAssembler.Icon = GetIcon(values, true);
 
                 // 0.17 compat, ingredient_count no longer required
-                newAssembler.MaxIngredients = ReadLuaInt(values, "ingredient_count", true, 10);
-                newAssembler.ModuleSlots = ReadLuaInt(values, "module_slots", true, 0);
+                newAssembler.MaxIngredients = GetLuaValueOrDefault<int>(values, "ingredient_count", true, 10);
+                newAssembler.ModuleSlots = GetLuaValueOrDefault<int>(values, "module_slots", true, 0);
                 if (newAssembler.ModuleSlots == 0)
                 {
-                    var moduleTable = ReadLuaLuaTable(values, "module_specification", true);
+                    var moduleTable = GetLuaValueOrDefault<LuaTable>(values, "module_specification", true);
                     if (moduleTable != null)
                     {
-                        newAssembler.ModuleSlots = ReadLuaInt(moduleTable, "module_slots", true, 0);
+                        newAssembler.ModuleSlots = GetLuaValueOrDefault<int>(moduleTable, "module_slots", true, 0);
                     }
                 }
-                newAssembler.Speed = ReadLuaFloat(values, "crafting_speed");
+                newAssembler.Speed = GetLuaValueOrDefault<float>(values, "crafting_speed");
 
-                LuaTable effects = ReadLuaLuaTable(values, "allowed_effects", true);
+                LuaTable effects = GetLuaValueOrDefault<LuaTable>(values, "allowed_effects", true);
                 if (effects != null)
                 {
                     foreach (String effect in effects.Values)
@@ -1333,7 +1303,7 @@ namespace Foreman
                         newAssembler.AllowedEffects.Add(effect);
                     }
                 }
-                LuaTable categories = ReadLuaLuaTable(values, "crafting_categories");
+                LuaTable categories = GetLuaValueOrDefault<LuaTable>(values, "crafting_categories");
                 foreach (String category in categories.Values)
                 {
                     newAssembler.Categories.Add(category);
@@ -1363,25 +1333,25 @@ namespace Foreman
 
                 newFurnace.Icon = GetIcon(values, true);
                 newFurnace.MaxIngredients = 1;
-                newFurnace.ModuleSlots = ReadLuaInt(values, "module_slots", true, 0);
+                newFurnace.ModuleSlots = GetLuaValueOrDefault<int>(values, "module_slots", true, 0);
                 if (newFurnace.ModuleSlots == 0)
                 {
-                    var moduleTable = ReadLuaLuaTable(values, "module_specification", true);
+                    var moduleTable = GetLuaValueOrDefault<LuaTable>(values, "module_specification", true);
                     if (moduleTable != null)
                     {
-                        newFurnace.ModuleSlots = ReadLuaInt(moduleTable, "module_slots", true, 0);
+                        newFurnace.ModuleSlots = GetLuaValueOrDefault<int>(moduleTable, "module_slots", true, 0);
                     }
                 }
-                newFurnace.Speed = ReadLuaFloat(values, "crafting_speed", true, -1f);
+                newFurnace.Speed = GetLuaValueOrDefault<float>(values, "crafting_speed", true, -1f);
                 if (newFurnace.Speed == -1f)
                 {   //In case we're still on Factorio 0.10
-                    newFurnace.Speed = ReadLuaFloat(values, "smelting_speed");
+                    newFurnace.Speed = GetLuaValueOrDefault<float>(values, "smelting_speed");
                 }
 
-                LuaTable categories = ReadLuaLuaTable(values, "crafting_categories", true);
+                LuaTable categories = GetLuaValueOrDefault<LuaTable>(values, "crafting_categories", true);
                 if (categories == null)
                 {   //Another 0.10 compatibility thing.
-                    categories = ReadLuaLuaTable(values, "smelting_categories");
+                    categories = GetLuaValueOrDefault<LuaTable>(values, "smelting_categories");
                 }
                 foreach (String category in categories.Values)
                 {
@@ -1412,19 +1382,19 @@ namespace Foreman
 
                 newMiner.Icon = GetIcon(values, true);
                 // 0.17 compat, mining_power no longer required
-                newMiner.MiningPower = ReadLuaFloat(values, "mining_power", true, 1);
-                newMiner.Speed = ReadLuaFloat(values, "mining_speed");
-                newMiner.ModuleSlots = ReadLuaInt(values, "module_slots", true, 0);
+                newMiner.MiningPower = GetLuaValueOrDefault<float>(values, "mining_power", true, 1);
+                newMiner.Speed = GetLuaValueOrDefault<float>(values, "mining_speed");
+                newMiner.ModuleSlots = GetLuaValueOrDefault<int>(values, "module_slots", true, 0);
                 if (newMiner.ModuleSlots == 0)
                 {
-                    var moduleTable = ReadLuaLuaTable(values, "module_specification", true);
+                    var moduleTable = GetLuaValueOrDefault<LuaTable>(values, "module_specification", true);
                     if (moduleTable != null)
                     {
-                        newMiner.ModuleSlots = ReadLuaInt(moduleTable, "module_slots", true, 0);
+                        newMiner.ModuleSlots = GetLuaValueOrDefault<int>(moduleTable, "module_slots", true, 0);
                     }
                 }
 
-                LuaTable categories = ReadLuaLuaTable(values, "resource_categories");
+                LuaTable categories = GetLuaValueOrDefault<LuaTable>(values, "resource_categories");
                 if (categories != null)
                 {
                     foreach (String category in categories.Values)
@@ -1458,14 +1428,14 @@ namespace Foreman
                     return; //This means the resource is not usable by miners and is therefore not useful to us
                 }
                 Resource newResource = new Resource(name);
-                newResource.Category = ReadLuaString(values, "category", true, "basic-solid");
-                LuaTable minableTable = ReadLuaLuaTable(values, "minable", true);   
-                newResource.Hardness = ReadLuaFloat(minableTable, "hardness", true, 0.5f);
-                newResource.Time = ReadLuaFloat(minableTable, "mining_time");
+                newResource.Category = GetLuaValueOrDefault<string>(values, "category", true, "basic-solid");
+                LuaTable minableTable = GetLuaValueOrDefault<LuaTable>(values, "minable", true);   
+                newResource.Hardness = GetLuaValueOrDefault<float>(minableTable, "hardness", true, 0.5f);
+                newResource.Time = GetLuaValueOrDefault<float>(minableTable, "mining_time");
 
                 if (minableTable["result"] != null)
                 {
-                    newResource.result = ReadLuaString(minableTable, "result");
+                    newResource.result = GetLuaValueOrDefault<string>(minableTable, "result");
                 }
                 else
                 {
@@ -1494,25 +1464,20 @@ namespace Foreman
                 float speedBonus = 0f;
                 float productivityBonus = 0f;
 
-                LuaTable effectTable = ReadLuaLuaTable(values, "effect");
-                LuaTable speed = ReadLuaLuaTable(effectTable, "speed", true);
+                LuaTable effectTable = GetLuaValueOrDefault<LuaTable>(values, "effect");
+                LuaTable speed = GetLuaValueOrDefault<LuaTable>(effectTable, "speed", true);
                 if (speed != null)
                 {
-                    speedBonus = ReadLuaFloat(speed, "bonus", true, -1f);
+                    speedBonus = GetLuaValueOrDefault<float>(speed, "bonus", true, -1f);
                 }
 
-                if (speed == null || speedBonus <= 0)
-                {
-                    return;
-                }
-
-                LuaTable productivity = ReadLuaLuaTable(effectTable, "productivity", true);
+                LuaTable productivity = GetLuaValueOrDefault<LuaTable>(effectTable, "productivity", true);
                 if (productivity != null)
                 {
-                    productivityBonus = ReadLuaFloat(productivity, "bonus", true, -1f);
+                    productivityBonus = GetLuaValueOrDefault<float>(productivity, "bonus", true, -1f);
                 }
 
-                var limitations = ReadLuaLuaTable(values, "limitation", true);
+                var limitations = GetLuaValueOrDefault<LuaTable>(values, "limitation", true);
                 List<String> allowedIn = null;
                 if (limitations != null)
                 {
@@ -1545,7 +1510,7 @@ namespace Foreman
         {
             try
             {
-                float rotationSpeed = ReadLuaFloat(values, "rotation_speed");
+                float rotationSpeed = GetLuaValueOrDefault<float>(values, "rotation_speed");
                 Inserter newInserter = new Inserter(name);
                 newInserter.RotationSpeed = rotationSpeed;
                 newInserter.Icon = GetIcon(values, true);
@@ -1568,7 +1533,7 @@ namespace Foreman
                 source = values;
             else
             {
-                var difficultyTable = ReadLuaLuaTable(values, Difficulty, true);
+                var difficultyTable = GetLuaValueOrDefault<LuaTable>(values, Difficulty, true);
                 if (difficultyTable?["result"] != null || difficultyTable?["results"] != null)
                     source = difficultyTable;
             }
@@ -1581,8 +1546,8 @@ namespace Foreman
 
             if (source?["result"] != null)
             {
-                String resultName = ReadLuaString(source, "result");
-                float resultCount = ReadLuaFloat(source, "result_count", true);
+                String resultName = GetLuaValueOrDefault<string>(source, "result");
+                float resultCount = GetLuaValueOrDefault<float>(source, "result_count", true);
                 if (resultCount == 0f)
                 {
                     resultCount = 1f;
@@ -1592,7 +1557,7 @@ namespace Foreman
             else
             {
                 // If we can't read results, try difficulty/results
-                LuaTable resultsTable = ReadLuaLuaTable(source, "results", true);
+                LuaTable resultsTable = GetLuaValueOrDefault<LuaTable>(source, "results", true);
 
                 if (resultsTable != null)
                 {
@@ -1603,11 +1568,11 @@ namespace Foreman
                         Item result;
                         if (resultTable["name"] != null)
                         {
-                            result = FindOrCreateUnknownItem(ReadLuaString(resultTable, "name"));
+                            result = FindOrCreateUnknownItem(GetLuaValueOrDefault<string>(resultTable, "name"));
                         }
                         else if (resultTable[1] != null)
                         {
-                            result = FindOrCreateUnknownItem((string)resultTable[1]);
+                            result = FindOrCreateUnknownItem((string)resultTable[1]); 
                         }
                         else
                         {
@@ -1618,16 +1583,16 @@ namespace Foreman
                         float amount = 0f;
                         if (resultTable["amount"] != null)
                         {
-                            amount = ReadLuaFloat(resultTable, "amount");
+                            amount = GetLuaValueOrDefault<float>(resultTable, "amount");
                             //Just the average yield. Maybe in the future it should show more information about the probability
-                            var probability = ReadLuaFloat(resultTable, "probability", true, 1.0f);
+                            var probability = GetLuaValueOrDefault<float>(resultTable, "probability", true, 1.0f);
                             amount *= probability;
                         }
                         else if (resultTable["amount_min"] != null)
                         {
-                            float probability = ReadLuaFloat(resultTable, "probability", true, 1f);
-                            float amount_min = ReadLuaFloat(resultTable, "amount_min");
-                            float amount_max = ReadLuaFloat(resultTable, "amount_max");
+                            float probability = GetLuaValueOrDefault<float>(resultTable, "probability", true, 1f);
+                            float amount_min = GetLuaValueOrDefault<float>(resultTable, "amount_min");
+                            float amount_max = GetLuaValueOrDefault<float>(resultTable, "amount_max");
                             amount = ((amount_min + amount_max) / 2f) * probability;        //Just the average yield. Maybe in the future it should show more information about the probability
                         }
                         else
@@ -1657,8 +1622,8 @@ namespace Foreman
         {
             Dictionary<Item, float> ingredients = new Dictionary<Item, float>();
 
-            LuaTable ingredientsTable = ReadLuaLuaTable(values, "ingredients", true) ??
-                                        ReadLuaLuaTable(ReadLuaLuaTable(values, Difficulty), "ingredients");
+            LuaTable ingredientsTable = GetLuaValueOrDefault<LuaTable>(values, "ingredients", true) ??
+                                        GetLuaValueOrDefault<LuaTable>(GetLuaValueOrDefault<LuaTable>(values, Difficulty), "ingredients");
 
             var ingredientEnumerator = ingredientsTable.GetEnumerator();
             while (ingredientEnumerator.MoveNext())
