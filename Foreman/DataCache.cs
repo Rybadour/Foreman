@@ -828,13 +828,13 @@ namespace Foreman
             Mods.Add(newMod);
         }
 
-        private static readonly List<Tuple<string, DependencyType>> DependencyTypeTokens = new List<Tuple<string, DependencyType>>
+        private static readonly List<Tuple<String, DependencyType>> DependencyTypeTokens = new List<Tuple<String, DependencyType>>
         {
             Tuple.Create("(?)", DependencyType.OptionalHidden),
             Tuple.Create("?", DependencyType.Optional),
             Tuple.Create("!", DependencyType.Incompatible)
         };
-        private static readonly List<Tuple<string, VersionOperator>> VersionOperatorTokens = new List<Tuple<string, VersionOperator>>
+        private static readonly List<Tuple<String, VersionOperator>> VersionOperatorTokens = new List<Tuple<String, VersionOperator>>
         {
             // Order is important to match the 'largest' token first
             Tuple.Create(VersionOperator.GreaterThanOrEqual.Token(), VersionOperator.GreaterThanOrEqual),
@@ -851,7 +851,7 @@ namespace Foreman
                 mod.dependencies.Add("core >= 0.0.0.0");
             }
 
-            foreach (string depString in mod.dependencies)
+            foreach (String depString in mod.dependencies)
             {
                 ModDependency newDependency = new ModDependency();
 
@@ -859,7 +859,7 @@ namespace Foreman
                 var dependencyTypeToken = DependencyTypeTokens.FirstOrDefault(t => trimmedDepString.StartsWith(t.Item1));
                 newDependency.Type = dependencyTypeToken?.Item2 ?? DependencyType.Required;
 
-                string modNameWithVersion = dependencyTypeToken != null ?
+                String modNameWithVersion = dependencyTypeToken != null ?
                     trimmedDepString.Substring(dependencyTypeToken.Item1.Length).TrimStart() : trimmedDepString;
                 var indexOfVersionOperatorToken = VersionOperatorTokens
                     .Select(t => new { Token = t.Item1, Index = modNameWithVersion.IndexOf(t.Item1), Operator = t.Item2 })
@@ -872,7 +872,7 @@ namespace Foreman
                         .TrimEnd();
                     newDependency.VersionOperator = indexOfVersionOperatorToken.Operator;
 
-                    string versionString = modNameWithVersion
+                    String versionString = modNameWithVersion
                         .Substring(indexOfVersionOperatorToken.Index + indexOfVersionOperatorToken.Token.Length)
                         .TrimStart();
                     if (!Version.TryParse(versionString, out newDependency.Version))
