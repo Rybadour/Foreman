@@ -6,15 +6,15 @@ namespace Foreman
 {
 	public class Mod
 	{
-		public string Id = "";
-		public string Name = "";
-		public string title = "";
-		public string version = "";
+		public String Id = "";
+		public String Name = "";
+		public String title = "";
+		public String version = "";
 		public Version parsedVersion;
-		public string dir = "";
-		public string description = "";
-		public string author = "";
-		public List<string> dependencies = new List<string>();
+		public String dir = "";
+		public String description = "";
+		public String author = "";
+		public List<String> dependencies = new List<String>();
 		public List<ModDependency> parsedDependencies = new List<ModDependency>();
 		public bool Enabled = true;
 
@@ -72,7 +72,7 @@ namespace Foreman
 			return false;
 		}
 
-		public override string ToString()
+		public override String ToString()
 		{
 			return Name;
 		}
@@ -81,7 +81,7 @@ namespace Foreman
 	public class ModDependency
 	{
 		public DependencyType Type = DependencyType.Required;
-		public string ModName = "";
+		public String ModName = "";
 		public Version Version;
 		public VersionOperator VersionOperator = VersionOperator.EqualTo;
 
@@ -90,7 +90,7 @@ namespace Foreman
 			Type == DependencyType.OptionalHidden ||
 			Type == DependencyType.Incompatible;
 
-		public override string ToString()
+		public override String ToString()
 		{
 			return ModName + " " + VersionOperator.Token() + " " + Version;
 		}

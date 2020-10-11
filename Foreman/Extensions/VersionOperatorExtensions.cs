@@ -1,8 +1,10 @@
-﻿namespace Foreman
+﻿using System;
+
+namespace Foreman
 {
     public static class VersionOperatorExtensions
     {
-        public static string Token(this VersionOperator value)
+        public static String Token(this VersionOperator value)
         {
             switch (value)
             {

@@ -3,7 +3,7 @@
 /Foreman/bin/
 /Foreman/obj/
 /ForemanTest/obj/
+/ForemanTest/bin/
 /packages/
-/ForemanTest/bin/Release/
 Foreman/.vscode/launch.json
 Foreman/.vscode/tasks.json
