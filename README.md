@@ -1,5 +1,7 @@
 # Foreman #
 
+## NOTE: This repository has been superceded by [Foreman2](https://github.com/DanielKote/Foreman2). Foreman 2 has countless improvements and active development!
+
 This is a simple program for generating flowcharts for production lines in the game [Factorio](https://www.factorio.com/).
 
 Requires .Net 4.0 or higher and Visual C++ 2012 x86 to run.
